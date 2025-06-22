@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: fact_payments
+    description: "Payments fact table"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - order_id
+            - payment_sequential
+
+    columns:
+      - name: order_id
+        description: "Order identifier"
+        tests:
+          - not_null
+      
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+
+      - name: payment_sequential
+        description: "Sequence number of the payment"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 29
+      
+      - name: payment_type
+        description: "Payment method"
+        tests:
+          - accepted_values:
+              values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+
+      - name: payment_installments
+        description: "Number of installments"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 24
+              config:
+                where: "payment_installments > 0" 
+
+      - name: payment_value
+        description: "Payment amount"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.01
+              max_value: 10000
+              config:
+                severity: warn
+      
+      - name: payment_date_id
+        description: "Date ID derived from order_approved_at"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+      
+      - name: is_installment
+        description: "Installment flag"   
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false     
+
+      - name: installment_value
+        description: "Value per installment"
+      
+      - name: payment_type_flag_credit
+        description: "Credit card payment flag"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false 
+      
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+          - not_null

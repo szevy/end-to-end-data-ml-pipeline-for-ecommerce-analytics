@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: dim_seller
+    description: "Seller dimension table"
+    columns:
+      - name: seller_id
+        description: "Unique seller identifier"
+        tests:
+          - not_null
+          - unique
+
+      - name: zip_code_prefix
+        description: "First 5 digits of postal code"
+        tests:
+          - expect_column_values_to_match_regex:
+              regex: "^[0-9]{5}$" 
+          - relationships:
+              to: ref('dim_geolocation')
+              field: zip_code_prefix
+              config:
+                severity: warn
+
+      - name: city
+        description: "Seller's city"
+        tests:
+          - not_null
+
+      - name: state
+        description: "Customer state (e.g., SP, RJ)"
+        tests:
+          - accepted_values:
+              values: ['AC','AL','AP','AM','BA','CE','DF','ES','GO',
+                      'MA','MT','MS','MG','PA','PB','PR','PE','PI',
+                      'RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+          - not_null

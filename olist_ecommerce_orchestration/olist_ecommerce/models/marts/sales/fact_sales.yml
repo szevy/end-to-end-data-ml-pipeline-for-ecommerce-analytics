@@ -1,0 +1,110 @@
+version: 2
+
+models:
+  - name: fact_sales
+    description: "Sales fact table"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - order_id
+            - order_item_id
+
+    columns:
+      - name: order_id
+        description: "Order identifier"
+        tests:
+          - not_null
+
+      - name: order_item_id
+        description: "Order item identifier"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 50
+              config:
+                severity: warn
+
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+
+      - name: seller_id
+        description: "Seller identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_seller')
+              field: seller_id
+
+      - name: product_id
+        description: "Product identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+
+      - name: order_purchase_date_id
+        description: "Order purchase date (YYYYMMDD integer)"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+
+      - name: order_status
+        description: "Status of the order"
+        tests:
+          - accepted_values:
+              values: ['created', 'approved', 'processing', 'shipped', 'delivered', 'canceled', 'invoiced', 'unavailable']
+          - not_null
+
+      - name: price
+        description: "Product price"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.01
+              max_value: 10000
+
+      - name: freight_value
+        description: "Freight cost"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 500
+
+      - name: total_item_value
+        description: "Price + freight value"
+        tests:
+          - not_null
+
+      - name: order_count
+        description: "Count of orders, always 1 per row"
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1]
+              quote: false
+
+      - name: delivered_flag
+        description: "Flag indicating if order was delivered (1) or not (0)"
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false
+
+      - name: recognized_revenue
+        description: "Revenue amount if delivered, else 0"
+
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+            - not_null

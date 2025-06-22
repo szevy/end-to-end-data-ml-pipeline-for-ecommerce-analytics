@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+.env/
+.venv/
+env/
+venv/
+
+# Environment variable files
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+olist_ecommerce_orchestration/raw_data/
+
+# dbt
+olist_ecommerce_orchestration/olist_ecommerce/target/
+olist_ecommerce_orchestration/olist_ecommerce/dbt_packages/
+olist_ecommerce_orchestration/olist_ecommerce/logs/
+
+# Dagster
+olist_ecommerce_orchestration/olist_ecommerce_orchestration.egg-info
+olist_ecommerce_orchestration/olist_ecommerce_orchestration_tests
+dagster_home/
+
+# VSCode
+.vscode/
+
+# Conda environments
+*.conda
+
+# Logs
+*.log
+
+# Kaggle API credentials
+.keys/kaggle.json
+
+# Gcp API credentials
+.keys/gcp_service_account.json

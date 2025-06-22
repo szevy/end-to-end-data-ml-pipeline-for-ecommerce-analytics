@@ -1,0 +1,115 @@
+version: 2
+
+models:
+  - name: fact_fulfillment
+    description: "Fulfillment fact table tracking shipping deadlines and delivery performance metrics."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - order_id
+            - order_item_id
+
+      - dbt_utils.expression_is_true:
+          expression: "actual_delivery_days <= estimated_delivery_days + 14"
+          severity: warn
+
+      - expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: shipping_limit_date
+          column_B: order_approved_at
+          config:
+            where: "shipping_limit_date IS NOT NULL AND order_approved_at IS NOT NULL"
+            severity: warn
+          
+    columns:
+      - name: order_id
+        description: "Order identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fact_orders')
+              field: order_id  
+
+      - name: order_item_id
+        description: "Order item identifier"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 50
+              config:
+                severity: warn
+
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+
+      - name: product_id
+        description: "Product identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+
+      - name: seller_id
+        description: "Seller identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_seller')
+              field: seller_id
+
+      - name: order_status
+        description: "Status of the order" 
+
+      - name: shipping_limit_date
+        description: "Shipping deadline timestamp"
+
+      - name: shipping_limit_date_id
+        description: "Shipping deadline date (YYYYMMDD integer)"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+              config:
+                severity: warn
+
+      - name: actual_delivery_days
+        description: "Actual days from approval to delivery"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 60
+              config:
+                severity: warn
+                where: "delivery_delay IS NOT NULL"
+
+      - name: estimated_delivery_days
+        description: "Estimated days from approval to delivery"
+
+      - name: delivery_delay
+        description: "Days delayed (actual vs estimated)"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -7
+              max_value: 30
+              config:
+                severity: warn
+                where: "delivery_delay IS NOT NULL"
+
+      - name: delivery_late_flag
+        description: "Late delivery flag"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false
+
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+          - not_null

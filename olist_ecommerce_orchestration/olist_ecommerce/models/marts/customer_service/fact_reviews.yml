@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: fact_reviews
+    description: "Order reviews fact table"
+    columns:
+      - name: review_id
+        description: "Unique review identifier"
+        tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: "Order identifier"
+        tests:
+          - not_null
+
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+
+      - name: review_score
+        description: "Review rating score"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+
+      - name: review_comment_message
+        description: "Full review message"
+
+      - name: review_length
+        description: "Length of review comment in characters"
+
+      - name: has_comment
+        description: "Flag indicating if review has a comment (1) or not (0)"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false
+
+      - name: review_creation_date
+        description: "Date the review was created"
+        tests:
+          - not_null
+
+      - name: review_creation_date_id
+        description: "Review creation date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+
+      - name: review_answer_date
+        description: "Timestamp when review answer was made"
+
+      - name: review_answer_date_id
+        description: "Review answer date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+
+      - name: response_time_hours
+        description: "Response time in hours"
+
+      - name: is_positive_review
+        description: "Flag for positive reviews (score >= 4)"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false
+
+      - name: is_negative_review
+        description: "Flag for negative reviews (score <= 2)"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [0, 1]
+              quote_values: false
+
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+          - not_null

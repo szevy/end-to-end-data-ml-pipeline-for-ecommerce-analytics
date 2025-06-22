@@ -1,0 +1,110 @@
+version: 2
+
+models:
+  - name: fact_orders
+    description: "Orders fact table"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - order_id
+            - customer_id
+            
+      - expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: order_approved_date
+          column_B: order_purchase_date
+          or_equal: False  
+          config:
+            where: "order_approved_date IS NOT NULL AND order_purchase_date IS NOT NULL"
+            severity: warn
+
+      - expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: order_delivered_carrier_date
+          column_B: order_approved_date
+          or_equal: False
+          config:
+            where: "order_delivered_carrier_date IS NOT NULL AND order_approved_date IS NOT NULL"
+            severity: warn
+
+      - expect_column_pair_values_A_to_be_greater_than_B:
+          column_A: order_delivered_customer_date
+          column_B: order_delivered_carrier_date
+          or_equal: False
+          config:
+            where: "order_delivered_customer_date IS NOT NULL AND order_delivered_carrier_date IS NOT NULL"
+            severity: warn
+
+    columns:
+      - name: order_id
+        description: "Primary key for orders"
+        tests:
+          - unique
+          - not_null
+      
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+      
+      - name: order_status
+        description: "Status of the order"
+        tests:
+          - accepted_values:
+              values: ['created', 'approved', 'processing', 'shipped', 'delivered', 'canceled', 'invoiced', 'unavailable']
+      
+      - name: order_purchase_date
+        description: "Timestamp when order was purchased"
+        tests:
+          - not_null
+      
+      - name: order_approved_date
+        description: "Timestamp when order was approved"
+      
+      - name: order_delivered_carrier_date
+        description: "Timestamp when order was delivered to carrier"
+      
+      - name: order_delivered_customer_date
+        description: "Timestamp when order was delivered to customer"
+
+      - name: order_estimated_delivery_date
+        description: "Timestamp for estimated delivery date"
+   
+      - name: order_purchase_date_id
+        description: "Order purchase date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+
+      - name: order_approved_date_id
+        description: "Order approved date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+      
+      - name: order_delivered_carrier_date_id
+        description: "Order delivered to carrier date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+      
+      - name: order_delivered_customer_date_id
+        description: "Order delivered to customer date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+      
+      - name: order_estimated_delivery_date_id
+        description: "Estimated delivery date (YYYYMMDD integer)"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+      
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+          - not_null
+    

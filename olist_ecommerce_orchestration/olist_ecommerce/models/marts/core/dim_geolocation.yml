@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: dim_geolocation
+    description: "Geolocation dimension table"
+    config:
+      materialized: table
+
+    columns:
+      - name: geo_key
+        description: "Surrogate key"
+        tests:
+          - not_null
+          - unique
+
+      - name: zip_code_prefix
+        description: "5-digit postal code"
+        tests:
+          - not_null
+
+      - name: is_imputed
+        description: "Imputation flag"
+        tests:
+          - accepted_values:
+              values: [true, false]
+              quote: false

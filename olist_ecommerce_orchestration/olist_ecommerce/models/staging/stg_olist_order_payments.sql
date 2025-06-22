@@ -1,0 +1,1 @@
+SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'olist_order_payments_dataset') }}

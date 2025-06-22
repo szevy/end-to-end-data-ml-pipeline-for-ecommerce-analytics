@@ -1,0 +1,12 @@
+olist_ecommerce:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "analytics_{{ env_var('PROJECT_NAME') }}"
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      location: "{{ env_var('BQ_DATASET_LOCATION') }}"
+      threads: 1
+      timeout_seconds: 300

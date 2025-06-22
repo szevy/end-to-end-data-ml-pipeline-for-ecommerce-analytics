@@ -1,0 +1,40 @@
+version: 2
+
+sources:
+  - name: "raw_{{ env_var('PROJECT_NAME') }}"
+    database: "{{ target.project }}"
+    schema: "raw_{{ env_var('PROJECT_NAME') }}"
+    
+    tables:
+      - name: olist_customers_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "customers"]
+      - name: olist_geolocation_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "geolocation"]
+      - name: olist_order_items_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "order_items"]
+      - name: olist_order_payments_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "order_payments"]
+      - name: olist_order_reviews_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "order_reviews"]
+      - name: olist_orders_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "orders"]
+      - name: olist_products_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "products"]
+      - name: olist_sellers_dataset
+        meta:
+          dagster:
+            asset_key: ["ingestion_to_bq", "sellers"]

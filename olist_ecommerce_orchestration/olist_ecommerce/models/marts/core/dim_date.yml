@@ -1,0 +1,144 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: |
+      Date dimension table generated using dbt_utils.date_spine.
+      Includes standard date parts, business-friendly flags (weekend, season, etc.), and Brazilian national holidays (both fixed and Easter-related).
+
+    columns:
+      - name: date_id
+        description: "Primary key in YYYYMMDD integer format"
+        tests:
+          - unique
+          - not_null
+
+      - name: full_date
+        description: "Actual date value"
+        tests:
+          - not_null
+      
+      - name: year
+        description: "Year component"
+        tests:
+          - not_null
+
+      - name: month
+        description: "Month component (1-12)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 12
+
+      - name: day
+        description: "Day component"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 31
+
+      - name: day_of_week
+        description: "Day of week (1=Sunday through 7=Saturday)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 7
+
+      - name: day_name
+        description: "Name of the day (e.g., 'Monday')"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+              config:
+                severity: warn
+
+      - name: month_name
+        description: "Name of the month (e.g., 'January')"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['January', 'February', 'March', 'April', 'May', 'June', 
+                      'July', 'August', 'September', 'October', 'November', 'December']
+
+      - name: week_of_year
+        description: "Week number of the year (1-53)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 53
+              config:
+                severity: warn 
+
+      - name: quarter_of_year
+        description: "Calendar quarter (1-4)"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 4
+
+      - name: year_month
+        description: Year and month formatted as 'YYYY-MM'.
+
+      - name: is_weekend
+        description: "Weekend flag"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [true, false]  
+              quote_values: false  
+
+      - name: is_holiday
+        description: TRUE if the date is a national holiday in Brazil, including both fixed-date and Easter-based movable holidays.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [true, false]  
+              quote_values: false  
+
+      - name: holiday_name
+        description: "Name of the Brazilian national holiday (in Portuguese), or NULL if not a holiday"
+        tests:
+          - accepted_values:
+              values: [
+                NULL,
+                'Ano Novo',
+                'Tiradentes',
+                'Dia do Trabalhador',
+                'Independência do Brasil',
+                'Nossa Senhora Aparecida',
+                'Finados',
+                'Proclamação da República',
+                'Natal',
+                'Carnaval (Segunda-feira)',
+                'Carnaval (Terça-feira)',
+                'Sexta-feira Santa',
+                'Páscoa',
+                'Corpus Christi'
+              ]
+              config:
+                where: "is_holiday = TRUE"
+
+      - name: season
+        description: "Calendar season based on the Southern Hemisphere (e.g., Summer = Dec–Feb)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Summer', 'Autumn', 'Winter', 'Spring']
+
+      - name: is_first_day_of_month
+        description: TRUE if the date is the first of the month.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [true, false] 
+              quote_values: false  
+
+      - name: is_last_day_of_month
+        description: TRUE if the date is the last of the month.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_in_set:
+              value_set: [true, false]  
+              quote_values: false  

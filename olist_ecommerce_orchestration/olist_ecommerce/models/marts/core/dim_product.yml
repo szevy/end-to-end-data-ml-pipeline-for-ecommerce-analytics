@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: dim_product
+    description: "Product dimension table"
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+          - unique
+      
+      - name: product_category_name
+        description: "Product category (English)"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('product_category_name_translation')  # the name of the seed file
+              field: product_category_name_english
+              config:
+                severity: warn
+
+      - name: product_photos_qty
+        description: "Product photos"
+
+      - name: product_weight_g
+        description: "Product weight"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 10
+              max_value: 50000
+              config:
+                severity: warn
+      
+      - name: product_length_cm
+        description: "Product length"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 5
+              max_value: 200
+      
+      - name: product_height_cm
+        description: "Product height"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 150
+
+      - name: product_width_cm
+        description: "Product width"
+      
+      - name: load_timestamp
+        description: "Timestamp when record was loaded"
+        tests:
+          - not_null
