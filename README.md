@@ -21,11 +21,16 @@ This project demonstrates a complete data workflow—from raw data ingestion to 
 ## Setup
 1.  Create the conda environment: `conda env create --file environment.yml`
 
-3.  Activate the environment: `conda activate ecp`
+2.  Activate the environment: `conda activate ecp`
 
-4.  Generate a Kaggle API key on Kaggle.com.
+3.  Generate a Kaggle API key on Kaggle.com.
 
-5.  Set up Google Cloud credentials to allow access to BigQuery. Obtain your Google service account key as a JSON file from the Google Cloud IAM & Admin console under your service account's "Manage keys" section.
+4.  Set up Google Cloud credentials to allow access to BigQuery. Obtain your Google service account key as a JSON file from the Google Cloud IAM & Admin console under your service account's "Manage keys" section.
+
+5.  Navigate to the `scripts/` directory:
+    ```bash
+    cd ~/modern-data-stack-dbt-dagster/olist_ecommerce_orchestration/olist_ecommerce_orchestration/scripts
+    ```
 
 6.  Move the Kaggle and GCP service account key files from `Downloads/` to a secure project directory. Then, add them to .gitignore and set restrictive file permissions to protect sensitive credentials:
     ```bash
@@ -37,7 +42,7 @@ This project demonstrates a complete data workflow—from raw data ingestion to 
 ## Usage
 1.  Navigate to the Dagster orchestration project directory:
     ```bash
-    cd ~/Module-2-Assignment-Project/olist_ecommerce_orchestration
+    cd ~/modern-data-stack-dbt-dagster/olist_ecommerce_orchestration
     ```
 
 2.  Export environment variables:
