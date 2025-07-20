@@ -1,5 +1,5 @@
 WITH products AS (
-  SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'olist_products_dataset') }}
+  SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'products') }}
 ),
 
 translations AS (

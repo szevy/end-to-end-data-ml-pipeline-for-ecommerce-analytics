@@ -23,6 +23,3 @@ models:
       +schema: staging 
     marts:
       +materialized: table 
-
-vars:
-  project_name: "raw_{{ var('project_name') }}"

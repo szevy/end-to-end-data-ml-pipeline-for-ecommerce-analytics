@@ -15,4 +15,4 @@ SELECT
     load_timestamp 
 
 FROM
-    {{ source('raw_' ~ env_var('PROJECT_NAME'), 'olist_orders_dataset') }}
+    {{ source('raw_' ~ env_var('PROJECT_NAME'), 'orders') }}

@@ -1,5 +1,5 @@
 WITH source AS (
-  SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'olist_sellers_dataset') }}
+  SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'sellers') }}
 ),
 
 cleaned AS (

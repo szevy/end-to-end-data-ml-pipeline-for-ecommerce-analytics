@@ -1,22 +1,36 @@
 [project]
 name = "olist_ecommerce_orchestration"
 version = "0.1.0"
-description = "Add your description here"
+description = "Olist E-commerce Orchestration with Dagster and dbt"
 readme = "README.md"
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.10,<3.13"
 dependencies = [
-    "dagster",
+    "dagster==1.10.20",
+    "dagster-dbt==0.26.20",
     "dagster-cloud",
+    "pandas==2.1.4",
+    "seaborn==0.13.2",
+    "pydantic==2.7.1",
+    "dagster-gcp",
+    "great_expectations==1.5.1",
+    "google-cloud-bigquery",
+    "google-cloud-bigquery-storage",
+    "google-auth",
+    "kaggle",
+    "dbt-core==1.9.8",
+    "dbt-bigquery==1.9.2",
+    "matplotlib==3.10.1",
+    "googletrans==4.0.0-rc1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "dagster-webserver", 
+    "dagster-webserver==1.10.20",
     "pytest",
 ]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.dagster]

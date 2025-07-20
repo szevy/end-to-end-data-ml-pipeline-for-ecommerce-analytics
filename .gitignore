@@ -22,11 +22,13 @@ olist_ecommerce_orchestration/raw_data/
 olist_ecommerce_orchestration/olist_ecommerce/target/
 olist_ecommerce_orchestration/olist_ecommerce/dbt_packages/
 olist_ecommerce_orchestration/olist_ecommerce/logs/
+olist_ecommerce_orchestration/olist_ecommerce/.user.yml
 
 # Dagster
 olist_ecommerce_orchestration/olist_ecommerce_orchestration.egg-info
 olist_ecommerce_orchestration/olist_ecommerce_orchestration_tests
 dagster_home/
+dagster_storage
 
 # VSCode
 .vscode/

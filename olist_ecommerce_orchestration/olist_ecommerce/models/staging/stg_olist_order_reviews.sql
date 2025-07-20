@@ -1,1 +1,1 @@
-SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'olist_order_reviews_dataset') }}
+SELECT * FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'order_reviews') }}

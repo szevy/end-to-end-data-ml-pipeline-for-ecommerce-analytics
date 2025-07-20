@@ -52,7 +52,7 @@ def standardize_dates(
 
     for col in date_cols:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime(date_format)
+            df[col] = pd.to_datetime(df[col], errors='coerce', utc=True)
 
     return df
 
@@ -66,12 +66,12 @@ def prepare_dataframe_for_export(
     """
     df = df.copy()
     df = df.drop_duplicates()
+    df = standardize_dates(df)
     df = clean_text_for_csv(
         df, 
         null_placeholder=null_placeholder,
         replace_delimiter=replace_delimiter
     )
-    df = standardize_dates(df)
     return df
 
 def run_data_cleaning(input_dir: str) -> dict[str, pd.DataFrame]:

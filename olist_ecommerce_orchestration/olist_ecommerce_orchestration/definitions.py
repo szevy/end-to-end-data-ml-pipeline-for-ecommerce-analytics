@@ -5,226 +5,273 @@ import sys
 import pandas as pd
 import json
 
-from dagster import Definitions, job, op, graph, AssetIn, AssetOut, Output, In, Out
+import dagster as dg
 from dagster_dbt import DbtCliResource, dbt_assets
+from dagster_gcp_pandas import BigQueryPandasIOManager
+from dagster import AssetOut, Output, multi_asset, AssetIn, AssetKey
 
 from .scripts.load_kaggle_dataset import run_kaggle_download
 from .scripts.data_cleaning_utils import run_data_cleaning
-from .scripts.bq_upload_batch import upload_to_bigquery_via_gcs
+from .scripts.bq_upload_batch import upload_to_bigquery_via_gcs, add_load_timestamps
 
-# The directory where this definitions.py file resides
-DAGSTER_CODE_DIR = Path(__file__).parent 
-
-# The directory of the 'olist_ecommerce_orchestration' (outer) folder
+DAGSTER_CODE_DIR = Path(__file__).parent
 OUTER_ORCHESTRATION_DIR = DAGSTER_CODE_DIR.parent
-
-# The root directory (Module-2-Assignment-Project)
 PROJECT_ROOT_DIR = OUTER_ORCHESTRATION_DIR.parent
-
-# DBT project directory
 DBT_PROJECT_DIR = OUTER_ORCHESTRATION_DIR / "olist_ecommerce"
-DBT_PROFILES_DIR = DBT_PROJECT_DIR # profiles.yml is inside the dbt project directory
-
-# Raw data directory - where Kaggle data will be downloaded and saved
+DBT_PROFILES_DIR = DBT_PROJECT_DIR
 RAW_DATA_DIR = OUTER_ORCHESTRATION_DIR / "raw_data"
-
-# DBT Seeds directory
 DBT_SEEDS_DIR = DBT_PROJECT_DIR / "seeds"
-
-# Paths for DBT manifest
 DBT_MANIFEST_PATH = DBT_PROJECT_DIR / "target" / "manifest.json"
-
 
 dbt_resource = DbtCliResource(
     project_dir=str(DBT_PROJECT_DIR),
     profiles_dir=str(DBT_PROFILES_DIR),
 )
 
+warehouse_io_manager = BigQueryPandasIOManager(
+    project=os.getenv("GCP_PROJECT_ID"),
+    dataset=f"raw_{os.getenv('PROJECT_NAME')}",
+)
 
-@op
-def load_kaggle_data():
+io_manager_for_dataframes = dg.FilesystemIOManager(
+    base_dir=str(PROJECT_ROOT_DIR / "dagster_storage" / "intermediate_files")
+)
+
+@dg.asset(compute_kind="python")
+def kaggle_raw_data(context: dg.AssetExecutionContext) -> bool:
     """
     Downloads the Olist dataset from Kaggle and saves raw CSVs to RAW_DATA_DIR,
     and the translation CSV to DBT_SEEDS_DIR.
     """
-    print(f"Ensuring raw data directory exists: {RAW_DATA_DIR}")
+    context.log.info(f"Ensuring raw data directory exists: {RAW_DATA_DIR}")
     os.makedirs(RAW_DATA_DIR, exist_ok=True)
-    print(f"Ensuring DBT seeds directory exists: {DBT_SEEDS_DIR}")
+    context.log.info(f"Ensuring DBT seeds directory exists: {DBT_SEEDS_DIR}")
     os.makedirs(DBT_SEEDS_DIR, exist_ok=True)
 
-    print("Executing Kaggle data download and distribution...")
+    context.log.info("Executing Kaggle data download and distribution...")
     try:
         run_kaggle_download(str(RAW_DATA_DIR), str(DBT_SEEDS_DIR))
-        print("Kaggle data loaded and distributed successfully.")
+        context.log.info("Kaggle data loaded and distributed successfully.")
         return True
     except Exception as e:
-        print(f"Error during Kaggle data load: {e}", file=sys.stderr)
-        raise 
-
-@op(ins={"start": In(bool)}, out=Out(dict))
-def extract_and_clean_data(start: bool):
-    """
-    Reads all raw CSVs from RAW_DATA_DIR, cleans them using data_cleaning_utils,
-    and returns them as a dictionary of Pandas DataFrames.
-    """
-    print(f"Starting data extraction and cleaning from {RAW_DATA_DIR}...")
-    try:
-        cleaned_dfs = run_data_cleaning(str(RAW_DATA_DIR))
-        print(f"Data cleaning finished. {len(cleaned_dfs)} DataFrames processed.")
-        return cleaned_dfs 
-    except Exception as e:
-        print(f"Error during data extraction and cleaning: {e}", file=sys.stderr)
-        raise 
-
-@op(ins={"dfs": In(dict)})
-def load_cleaned_data_to_bq(dfs: dict):
-    """
-    Loads the processed DataFrames into BigQuery using your upload_to_bigquery_via_gcs utility.
-    """
-    print("Starting BigQuery upload using upload_to_bigquery_via_gcs function...")
-
-    project_name = os.environ.get("PROJECT_NAME")
-    gcp_project_id = os.environ.get("GCP_PROJECT_ID")
-    gcs_bucket_name = os.environ.get("GCS_BUCKET_NAME")
-    google_application_credentials = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    bq_dataset_location = os.environ.get("BQ_DATASET_LOCATION")
-    load_timestamp_offset_hours_str = os.environ.get("LOAD_TIMESTAMP_OFFSET_HOURS")
-
-    missing_vars = [
-        var_name for var_name, var_value in {
-            "PROJECT_NAME": project_name, "GCP_PROJECT_ID": gcp_project_id, 
-            "GCS_BUCKET_NAME": gcs_bucket_name, "GOOGLE_APPLICATION_CREDENTIALS": google_application_credentials,
-            "BQ_DATASET_LOCATION": bq_dataset_location, "LOAD_TIMESTAMP_OFFSET_HOURS": load_timestamp_offset_hours_str
-        }.items() if var_value is None
-    ]
-    if missing_vars:
-        error_msg = (f"🚨 CRITICAL ERROR: The following essential environment variables are missing or not set: {', '.join(missing_vars)}. "
-                     "Please ensure they are properly configured before running the pipeline.")
-        print(error_msg, file=sys.stderr)
-        raise Exception(error_msg)
-
-    try:
-        load_timestamp_offset_hours = int(load_timestamp_offset_hours_str)
-    except ValueError:
-        print(f"Warning: LOAD_TIMESTAMP_OFFSET_HOURS '{load_timestamp_offset_hours_str}' is not an integer. Defaulting to 0.", file=sys.stderr)
-        load_timestamp_offset_hours = 0
-    
-    add_load_timestamp_flag = (load_timestamp_offset_hours != 0)
-
-    try:
-        uploaded_tables_list = upload_to_bigquery_via_gcs(
-            dfs=dfs,
-            project_id=gcp_project_id,
-            target_dataset_id=f"raw_{project_name}",
-            gcs_bucket_name=gcs_bucket_name,
-            bq_dataset_location=bq_dataset_location,
-            add_load_timestamp=add_load_timestamp_flag,
-            timestamp_offset_hours=load_timestamp_offset_hours
-        )
-        print(f"Successfully uploaded tables to BigQuery: {uploaded_tables_list}")
-        return True
-    except Exception as e:
-        print(f"Error during BigQuery upload: {e}", file=sys.stderr)
+        context.log.error(f"Error during Kaggle data load: {e}")
         raise
 
-@op(ins={"start": In(bool)})
-def dbt_deps_op(start, dbt: DbtCliResource):
-    """Runs dbt deps to install dbt package dependencies."""
-    print("Running dbt deps...")
-    dbt.cli(["deps"]).wait()
-    print("dbt deps finished.")
-    yield Output(True)
-
-@op(ins={"start": In(bool)})
-def dbt_seed_op(start, dbt: DbtCliResource):
+@multi_asset(
+    deps=[kaggle_raw_data],
+    compute_kind="python",
+    outs={
+        "customers_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "customers_dataset"])),
+        "orders_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "orders_dataset"])),
+        "order_items_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "order_items_dataset"])),
+        "products_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "products_dataset"])),
+        "sellers_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "sellers_dataset"])),
+        "order_payments_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "order_payments_dataset"])),
+        "order_reviews_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "order_reviews_dataset"])),
+        "geolocation_dataset": AssetOut(key=dg.AssetKey(["cleaned_dataframes", "geolocation_dataset"])),
+    }
+)
+def cleaned_dataframes(context: dg.AssetExecutionContext):
     """
-    Runs dbt seed. This op will run all seeds found in your dbt project's 'seeds' directory.
+    Reads all raw CSVs from RAW_DATA_DIR, cleans them using data_cleaning_utils,
+    and yields them as individual Pandas DataFrames.
     """
-    print("Running dbt seed (all seeds in project)...")
-    dbt.cli(["seed"]).wait()
-    print("dbt seed finished.")
-    yield Output(True)
+    context.log.info(f"Starting data extraction and cleaning from {RAW_DATA_DIR}...")
+    try:
+        cleaned_dfs = run_data_cleaning(str(RAW_DATA_DIR))
+        context.log.info(f"Data cleaning finished. {len(cleaned_dfs)} DataFrames processed.")
 
-@op(ins={"start": In(bool)})
-def dbt_run_staging_op(start, dbt: DbtCliResource):
-    """Runs dbt run --select path:models/staging to build staging models only."""
-    print("Running dbt run (staging models only)...")
-    dbt.cli(["run", "--select", "path:models/staging"]).wait()
-    print("dbt run (staging models) finished.")
-    yield Output(True)
+        for df_key, df_data in cleaned_dfs.items():
+            if isinstance(df_data, pd.DataFrame):
+                cleaned_asset_name = df_key.replace('olist_', '').replace('.csv', '')
+                yield Output(
+                    value=df_data,
+                    output_name=cleaned_asset_name,
+                    metadata={
+                        "rows": df_data.shape[0],
+                        "cols": df_data.shape[1],
+                        "columns": df_data.columns.tolist() if df_data.shape[1] > 0 else []
+                    }
+                )
+            else:
+                context.log.error(f"Value for '{df_key}' is NOT a DataFrame. Type: {type(df_data)}")
 
-@op(ins={"start": In(bool)})
-def dbt_snapshot_op(start, dbt: DbtCliResource):
-    """
-    Runs dbt snapshot. This op will execute all snapshots configured in your dbt project.
-    """
-    print("Running dbt snapshot...")
-    dbt.cli(["snapshot"]).wait()
-    print("dbt snapshot finished.")
-    yield Output(True)
+    except Exception as e:
+        context.log.error(f"Error during data extraction and cleaning: {e}")
+        raise
 
-@op(ins={"start": In(bool)})
-def dbt_run_all_models_op(start, dbt: DbtCliResource):
-    """Runs dbt run to build all dbt models (including marts)."""
-    print("Running dbt run (all models)...")
-    dbt.cli(["run"]).wait() 
-    print("dbt run (all models) finished.")
-    yield Output(True)
+@dg.asset(
+    ins={
+        "customers_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "customers_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_customers_dataset"
+)
+def customers(context: dg.AssetExecutionContext, customers_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Customers DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(customers_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
 
-@op(ins={"start": In(bool)})
-def dbt_test_op(start, dbt: DbtCliResource):
-    """Runs dbt test to execute all tests."""
-    print("Running dbt test (all tests)...")
-    dbt.cli(["test"]).wait() 
-    print("dbt test finished.")
-    yield Output(True) 
+@dg.asset(
+    ins={
+        "orders_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "orders_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_orders_dataset"
+)
+def orders(context: dg.AssetExecutionContext, orders_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Orders DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(orders_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
 
+@dg.asset(
+    ins={
+        "order_items_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "order_items_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_order_items_dataset"
+)
+def order_items(context: dg.AssetExecutionContext, order_items_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Order items DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(order_items_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
 
-@job
-def python_elt_job():
-    """
-    Orchestrates the data pipeline from Kaggle extraction, cleaning, loading to BQ, and full dbt execution.
-    """
-    # Load data from Kaggle and distribute to raw_data/ and dbt_seeds/
-    kaggle_load_output = load_kaggle_data() 
-    
-    # Extract and clean data from raw_data/, passing DataFrames to the next step
-    cleaned_dataframes = extract_and_clean_data(start=kaggle_load_output) 
-    
-    # Load the cleaned Dataframes to BigQuery via GCS (into raw_{PROJECT_NAME} dataset)
-    bq_load_output = load_cleaned_data_to_bq(dfs=cleaned_dataframes) 
+@dg.asset(
+    ins={
+        "products_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "products_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_products_dataset"
+)
+def products(context: dg.AssetExecutionContext, products_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Products DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(products_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
 
-    # Run dbt commands sequentially
-    deps_output = dbt_deps_op(bq_load_output)
-    seed_output = dbt_seed_op(deps_output) 
-    
-    # Run only staging models first for snapshots
-    run_staging_output = dbt_run_staging_op(seed_output) 
-    snapshot_output = dbt_snapshot_op(run_staging_output) 
-    
-    # Run all remaining dbt models (marts, etc.) after snapshots
-    run_all_models_output = dbt_run_all_models_op(snapshot_output) 
-    
-    # Run all dbt tests
-    test_output = dbt_test_op(run_all_models_output) 
+@dg.asset(
+    ins={
+        "sellers_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "sellers_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_sellers_dataset"
+)
+def sellers(context: dg.AssetExecutionContext, sellers_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Sellers DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(sellers_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
 
+@dg.asset(
+    ins={
+        "order_payments_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "order_payments_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_order_payments_dataset"
+)
+def order_payments(context: dg.AssetExecutionContext, order_payments_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Order payments DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(order_payments_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
+
+@dg.asset(
+    ins={
+        "order_reviews_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "order_reviews_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_order_reviews_dataset"
+)
+def order_reviews(context: dg.AssetExecutionContext, order_reviews_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Order reviews DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(order_reviews_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
+
+@dg.asset(
+    ins={
+        "geolocation_dataset": AssetIn(key=AssetKey(["cleaned_dataframes", "geolocation_dataset"]))
+    },
+    compute_kind="bigquery",
+    key_prefix=["bigquery_raw_tables"],
+    io_manager_key="warehouse_io_manager",
+    name="olist_geolocation_dataset"
+)
+def geolocation(context: dg.AssetExecutionContext, geolocation_dataset: pd.DataFrame) -> pd.DataFrame:
+    """Geolocation DataFrame loaded to BigQuery."""
+    df_with_timestamps = add_load_timestamps(geolocation_dataset.copy(), timestamp_offset_hours=0)
+    return df_with_timestamps
 
 @dbt_assets(
     manifest=DBT_MANIFEST_PATH,
+    io_manager_key="warehouse_io_manager",
 )
-def olist_dbt_models(context, dbt: DbtCliResource):
+def olist_dbt_models(context: dg.AssetExecutionContext, dbt: DbtCliResource):
     """
-    Defines Dagster assets corresponding to dbt models.
-    Running this will trigger dbt build to execute your dbt models.
-    This is separate from the job's explicit steps but declares assets for the UI.
+    This asset block loads dbt models into Dagster's asset graph.
+    It first manually runs dbt deps, then performs the dbt build lifecycle.
     """
-    yield from dbt.cli(["build"]).stream()
+    context.log.info("Manually running dbt deps via subprocess...")
+    deps_command = [
+        "dbt",
+        "deps",
+        "--project-dir", str(DBT_PROJECT_DIR),
+        "--profiles-dir", str(DBT_PROFILES_DIR)
+    ]
+    try:
+        process = subprocess.run(
+            deps_command,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        context.log.info(f"dbt deps stdout:\n{process.stdout}")
+        if process.stderr:
+            context.log.warning(f"dbt deps stderr:\n{process.stderr}")
+        context.log.info("dbt deps finished successfully.")
+    except subprocess.CalledProcessError as e:
+        context.log.error(f"dbt deps failed with exit code {e.returncode}.")
+        context.log.error(f"dbt deps stdout:\n{e.stdout}")
+        context.log.error(f"dbt deps stderr:\n{e.stderr}")
+        raise
 
+    context.log.info("Executing dbt build for all models, snapshots, and tests...")
+    yield from dbt.cli(["build"], context=context).stream()
+    context.log.info("dbt build finished for olist_dbt_models group.")
 
-defs = Definitions(
-    assets=[olist_dbt_models],
+python_elt_job = dg.define_asset_job(
+    "python_elt_job",
+    selection=dg.AssetSelection.all()
+)
+
+defs = dg.Definitions(
+    assets=[
+        kaggle_raw_data,
+        cleaned_dataframes,
+        customers,
+        orders,
+        order_items,
+        products,
+        sellers,
+        order_payments,
+        order_reviews,
+        geolocation,
+        olist_dbt_models,
+    ],
     jobs=[python_elt_job],
     resources={
         "dbt": dbt_resource,
+        "warehouse_io_manager": warehouse_io_manager,
+        "io_manager": io_manager_for_dataframes,
     },
-) 
+)

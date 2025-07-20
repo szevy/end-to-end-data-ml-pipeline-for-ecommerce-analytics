@@ -1,10 +1,3 @@
-{{
-  config(
-    materialized = 'table',
-    unique_key = 'geo_key'
-  )
-}}
-
 WITH source AS (
     SELECT 
         geolocation_zip_code_prefix,
@@ -13,7 +6,7 @@ WITH source AS (
         geolocation_city,
         geolocation_state,
         load_timestamp
-    FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'olist_geolocation_dataset') }}
+    FROM {{ source('raw_' ~ env_var('PROJECT_NAME'), 'geolocation') }}
     WHERE geolocation_zip_code_prefix IS NOT NULL
 ),
 

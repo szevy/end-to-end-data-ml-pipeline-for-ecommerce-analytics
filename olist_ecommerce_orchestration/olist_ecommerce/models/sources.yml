@@ -1,40 +1,55 @@
 version: 2
 
-sources:
+sources:          
   - name: "raw_{{ env_var('PROJECT_NAME') }}"
     database: "{{ target.project }}"
     schema: "raw_{{ env_var('PROJECT_NAME') }}"
     
     tables:
-      - name: olist_customers_dataset
+      - name: customers
+        identifier: olist_customers_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "customers"]
-      - name: olist_geolocation_dataset
+            asset_key: ["bigquery_raw_tables", "olist_customers_dataset"]
+
+      - name: sellers
+        identifier: olist_sellers_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "geolocation"]
-      - name: olist_order_items_dataset
+            asset_key: ["bigquery_raw_tables", "olist_sellers_dataset"]
+
+      - name: orders
+        identifier: olist_orders_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "order_items"]
-      - name: olist_order_payments_dataset
+            asset_key: ["bigquery_raw_tables", "olist_orders_dataset"]
+
+      - name: order_items
+        identifier: olist_order_items_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "order_payments"]
-      - name: olist_order_reviews_dataset
+            asset_key: ["bigquery_raw_tables", "olist_order_items_dataset"]
+
+      - name: products
+        identifier: olist_products_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "order_reviews"]
-      - name: olist_orders_dataset
+            asset_key: ["bigquery_raw_tables", "olist_products_dataset"]
+
+      - name: order_reviews
+        identifier: olist_order_reviews_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "orders"]
-      - name: olist_products_dataset
+            asset_key: ["bigquery_raw_tables", "olist_order_reviews_dataset"]
+
+      - name: order_payments
+        identifier: olist_order_payments_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "products"]
-      - name: olist_sellers_dataset
+            asset_key: ["bigquery_raw_tables", "olist_order_payments_dataset"]
+
+      - name: geolocation
+        identifier: olist_geolocation_dataset
         meta:
           dagster:
-            asset_key: ["ingestion_to_bq", "sellers"]
+            asset_key: ["bigquery_raw_tables", "olist_geolocation_dataset"]
