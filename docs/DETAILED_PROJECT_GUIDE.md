@@ -22,8 +22,7 @@
     * [Visualizations](#visualizations)
     * [Hyperparameter Tuning & Justification](#hyperparameter-tuning--justification)
     * [Model Validation Metrics](#model-validation-metrics)
-    * [Customer Segment Interpretation and Naming](#customer-segment-interpretation-and-naming)
-    * [Conclusion](#conclusion)
+    * [Customer Segment Interpretation and Naming](#segment-naming-and-actionable-insights)
 
 ---
 
@@ -96,7 +95,7 @@ These dimensions are used across multiple data marts:
 
 The Sales Mart focuses on transactional sales data, allowing for analysis of sales performance, product popularity, and revenue.
 
-![Sales Mart](<../assets/Sales Mart.png>)
+![Sales Mart](../assets/Sales%20Mart.png)
 
 * **`fact_sales`**: This fact table captures key metrics related to individual product sales within an order. It includes `order_id`, `product_id`, `seller_id`, `customer_id`, `price`, `freight value`, `total item value`, `order count`, and a `recognized_revenue` flag. It links to `dim_date` via `order_purchase_date_id`, and to `dim_customer`, `dim_product`, and `dim_seller`.
 
@@ -104,7 +103,7 @@ The Sales Mart focuses on transactional sales data, allowing for analysis of sal
 
 This mart provides insights into the operational aspects of orders, focusing on delivery, approval, and fulfillment timelines.
 
-![Operations Mart](<../assets/Operations Mart.png>)
+![Operations Mart](../assets/Operations%20Mart.png)
 
 * **`fact_orders`**: Provides a comprehensive view of each order, including various timestamps (purchase, approved, carrier, customer delivery, estimated delivery), order status, and links to customer, product, and seller dimensions. This allows for tracking order lifecycle and identifying bottlenecks.
 
@@ -114,7 +113,7 @@ This mart provides insights into the operational aspects of orders, focusing on 
 
 The Finance Mart is designed for analyzing payment methods, installment plans, and total payment values.
 
-![Finance Mart](<../assets/Finance Mart.png>)
+![Finance Mart](../assets/Finance%20Mart.png)
 
 * **`fact_payments`**: This fact table details payment transactions, including `payment_type`, `payment_installments`, `payment_value`, and flags for installment and credit card payments. It links to `dim_date` and `dim_customer`, enabling financial performance analysis.
 
@@ -122,7 +121,7 @@ The Finance Mart is designed for analyzing payment methods, installment plans, a
 
 This mart is dedicated to understanding customer satisfaction and feedback through review data.
 
-![Customer Service Mart](<../assets/Customer Service Mart.png>)
+![Customer Service Mart](../assets/Customer%20Service%20Mart.png)
 
 * **`fact_reviews`**: Captures details about customer reviews, including `review_score`, `review_comment_message`, `review_creation_date`, `review_answer_date`, and flags for positive/negative reviews. It links to `dim_customer` and `dim_date`, allowing for analysis of customer sentiment and service response times.
 
@@ -160,23 +159,23 @@ Key visualizations are generated to aid in model interpretation and segment nami
 
 **SOM U-Matrix**
 
-![SOM U-Matrix](<../assets/SOM U-Matrix.png>)
+![SOM U-Matrix](../assets/SOM%20U-Matrix.png)
 
 **SOM Component Planes**
 
-![SOM Component Planes](<../assets/Component Planes.png>)
+![SOM Component Planes](../assets/Component%20Planes.png)
 
 **SOM U-Matrix with Customer Data Points Mapped**
 
-![SOM U-Matrix with Customer Data Points](<../assets/SOM U-Matrix with Data Points.png>)
+![SOM U-Matrix with Customer Data Points](../assets/SOM%20U-Matrix%20with%20Data%20Points.png)
 
 **SOM Map with Segment Numbers and Names**
 
-![SOM Map with Segments](<../assets/SOM Map with Segments.png>)
+![SOM Map with Segment Numbers and Names](../assets/SOM%20Map%20with%20Segments.png)
 
 **Segment Profile Dashboard: Key Feature Distributions**
 
-![Customer Segment Profile Dashboard](<../assets/Customer Segment Profile Dashboard.png>)
+![Customer Segment Profile Dashboard](../assets/Customer%20Segment%20Profile%20Dashboard.png)
 
 ### Hyperparameter Tuning & Justification
 
@@ -192,7 +191,7 @@ The SOM model's performance was optimized by tuning key hyperparameters:
 
 * **n_clusters (for K-Means):** Set to 3 based on the clear "elbow" observed in the Elbow Method plot on SOM neurons, suggesting 3 distinct and well-separated clusters, and using `kneed` computational tool to confirm.
 
-![Elbow Plot](<../assets/Elbow Plot.png>)
+![Elbow Plot](../assets/Elbow%20Plot.png)
 
 ### Model Validation Metrics
 
@@ -249,7 +248,7 @@ The current model demonstrates excellent and well-balanced performance across al
     * **Avg Product Category Value, Num Unique Products:** Moderate to High.
 
 * **Useful Insights & Strategy:**
-    * **Insight:** These are your active, valuable, and likely growing customers. They purchase recently, more frequently, spend more, and are generally satisfied. They are key to your business's ongoing revenue and have potential for increased loyalty and value.
+    * **Insight:** These are active, valuable, and likely growing customers. They purchase recently, more frequently, spend more, and are generally satisfied. They are key to your business's ongoing revenue and have potential for increased loyalty and value.
     * **Opportunity:** Nurture loyalty, maximize Customer Lifetime Value (CLV), and encourage advocacy.
     * **Strategy:**
         * **Loyalty Programs:** Offer exclusive discounts, early access to new products, or loyalty points to reward their engagement.

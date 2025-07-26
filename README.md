@@ -6,8 +6,9 @@
 
 * [Overview](#overview)
 * [Project Architecture](#project-architecture)
-* [ELT Data Pipeline](#elt-data-pipeline)
-* [Customer Segmentation ML Model](#customer-segmentation-ml-model)
+    * [End-to-End Data & ML Pipeline](#end-to-end-data--ml-pipeline-full_data_ml_pipeline)
+    * [ELT Data Pipeline](#elt-data-pipeline-python_elt_job)
+    * [Customer Segmentation ML Pipeline](#customer-segmentation-ml-pipelinesom_kmeans_segmentation_pipeline)
 * [Setup](#setup)
 * [Usage](#usage)
 * [License](#license)
@@ -23,54 +24,45 @@ Utilizing the **Brazilian E-Commerce Dataset by Olist**, this pipeline demonstra
 * **Cloud Data Warehouse:** Google BigQuery for data ingestion and storage.
 * **ELT & Data Quality:** Python and dbt for transformations, coupled with dbt tests, `dbt-utils`, and `dbt-expectations` for robust data quality checks.
 * **Analytics & Machine Learning:** A customer segmentation model is developed using a two-step clustering approach (Self-Organizing Map and K-Means), leveraging the refined data from dbt mart models to provide actionable insights.
-* **Orchestration:** Dagster for full pipeline orchestration and observable lineage, managing **two distinct yet interconnected jobs**: a core ELT pipeline and a customer segmentation ML pipeline (currently under development).
+* **Orchestration:** Dagster for full pipeline orchestration and observable lineage, managing **two distinct yet interconnected jobs**: a core ELT pipeline and a customer segmentation ML pipeline.
 
 ---
 
 ## Project Architecture
 
-### ELT Data Pipeline
+The pipeline follows a modern **ELT (Extract, Load, Transform)** approach, leveraging Google BigQuery as the cloud data warehouse and dbt for robust data transformations. Dagster orchestrates the entire process, providing clear and observable lineage through **three primary jobs**: `python_elt_job` for core data warehousing, `som_kmeans_segmentation_pipeline` for machine learning, or `full_data_ml_pipeline` for complete end-to-end runs. 
 
-The pipeline follows a modern **ELT (Extract, Load, Transform)** approach, leveraging Google BigQuery as the cloud data warehouse and dbt for robust data transformations. Dagster orchestrates the entire process, providing clear and observable lineage through **two primary jobs**: `python_elt_job` for core data warehousing and `som_kmeans_segmentation_pipeline` for machine learning.
-
+### End-to-End Data & ML Pipeline (`full_data_ml_pipeline`)
 Here's a high-level view of the data flow:
 
-**Global Asset Lineage**
-![Global Asset Lineage](<assets/Global Asset Lineage.jpg>)
+![Global Asset Lineage - Full](assets/Global%20Asset%20Lineage%20-%20Full.png)
+
+### ELT Data Pipeline (`python_elt_job`)
+Here's a high-level view of the data flow:
+
+![Global Asset Lineage - ELT](assets/Global%20Asset%20Lineage%20-%20ELT.jpg)
+
+### Customer Segmentation ML Pipeline(`som_kmeans_segmentation_pipeline`)
+Here's a high-level view of the data flow:
+
+![Global Asset Lineage - ML](assets/Global%20Asset%20Lineage%20-%20ML.png)
 
 The key stages are:
 
 * **Raw Data Ingestion:** CSV files from the Olist dataset are extracted and stored locally, then loaded into BigQuery as raw tables.
 * **Data Cleaning:** Raw data undergoes comprehensive cleaning and standardization using Pandas before loading into BigQuery.
 * **dbt Transformations:** Staging models prepare data for the final analytical layer, followed by the creation of **Mart Models (Star Schema)** for efficient business intelligence. Extensive dbt tests ensure data integrity.
-* **Customer Segmentation ML:** Built upon the dbt mart models, this stage performs feature engineering, trains SOM and K-Means clustering models, validates the model, and materializes segmented customer data and segment definitions.
+* **Customer Segmentation ML:** Built upon the dbt mart models, this stage performs feature engineering, trains SOM and K-Means clustering models, validates the model, and materializes segmented customer data and segment definitions. The model identifies distinct customer groups based on their behavior, employing a two-step clustering approach:
 
-For a comprehensive dive into the architecture and the detailed data model (Star Schema) for each mart, refer to the [**Detailed Project Guide**](docs/DETAILED_PROJECT_GUIDE.md).
+    * **Self-Organizing Map (SOM):** Reduces high-dimensional customer features into a low-dimensional grid, preserving topological relationships.
+    * **K-Means Clustering:** Applied to the SOM neurons to group similar neurons into distinct customer segments.
 
----
 
-### Customer Segmentation ML Model
-
-This project extends its analytical capabilities with a **Customer Segmentation ML Model**, which identifies distinct customer groups based on their behavior, leveraging the refined data from the dbt mart models.
-
-The model employs a powerful two-step clustering approach:
-
-* **Self-Organizing Map (SOM):** Reduces high-dimensional customer features into a low-dimensional grid, preserving topological relationships.
-* **K-Means Clustering:** Applied to the SOM neurons to group similar neurons into distinct customer segments.
-
-The optimal number of clusters (`n_clusters=3`) was determined using the Elbow Method with `kneed`.
-
-**Elbow Plot**
-
-![Elbow Plot](<assets/Elbow Plot.png>)
-
-**SOM U-Matrix with Segment Names and Numbers**
-
-![SOM Map with Segments](<assets/SOM Map with Segments.png>)
+![SOM Map with Segments](assets/SOM%20Map%20with%20Segments.png)
 
 This process culminates in an updated `dim_customer_segmented` table in BigQuery, complete with new `segment_id` assignments and a `dim_segment` lookup table providing human-readable segment names. Key visualizations like the SOM U-Matrix and Component Planes aid in interpretation.
 
-For a detailed, step-by-step walkthrough of the customer segmentation model, including comprehensive feature engineering, hyperparameter tuning justifications, and in-depth visualization of the segments, you can find more information in these resources:
+For a comprehensive dive into the architecture and the detailed data model (Star Schema) for each mart, step-by-step walkthrough of the customer segmentation model, including comprehensive feature engineering, hyperparameter tuning, segment naming justifications, and in-depth visualization of the segments, you can find more information in these resources:
 
 * **[Customer Segmentation Notebook](/notebooks/ml_model_customer_segmentation.ipynb)**
 * **[Detailed Project Guide](docs/DETAILED_PROJECT_GUIDE.md)**
@@ -113,13 +105,12 @@ Follow these steps to run the data pipelines and access the Dagster UI:
 
 1.  **Export environment variables:**
     ```bash
-    export \
     export GCP_PROJECT_ID="your-gcp-project-id" \
     export PROJECT_NAME="your-project-name" \
     export GCS_BUCKET_NAME="your-gcs-bucket-name" \
     export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-key.json" \
     export BQ_DATASET_LOCATION="your-dataset-location" \
-    export LOAD_TIMESTAMP_OFFSET_HOURS="load-timestamp-offset"
+    export LOAD_TIMESTAMP_OFFSET_HOURS="load-timestamp-offset"  # Enter "-3" for Brazilian time
     ```
 
 2.  **Make `start_dagster.sh` Executable (if not already):**
@@ -138,12 +129,21 @@ Follow these steps to run the data pipelines and access the Dagster UI:
     * Export all required environment variables.
     * Start the Dagster UI (Dagit), typically opening in your web browser (usually at `http://localhost:3000`).
 
-4.  **Launch the Dagster Job:** Once Dagit is loaded:
+4.  **Launch the Dagster Jobs:** Once Dagit is loaded, click on **Jobs**, and you will see three main jobs available:
 
-    * Navigate to Jobs in the left sidebar.
-    * Click on the `python_elt_job`.
-    * Then, click Materialize all (or Launch Run on the Launchpad) to initiate the full data pipeline run.
+    * **`full_data_ml_pipeline` (End-to-End Data & ML Pipeline):**
+        * **Purpose:** Orchestrates the entire data and machine learning workflow from raw data ingestion through to customer segmentation and materialization of final analytical tables. This job is designed for complete end-to-end runs.
+        * **To Run:** Navigate to **Jobs** in the left sidebar, click on `full_data_ml_pipeline`, then click **Materialize all** (or **Launch Run** on the Launchpad). This is ideal for a full refresh of all data and models.
 
+    * **`python_elt_job` (ELT Pipeline):**
+        * **Purpose:** Responsible for initial data ingestion (Kaggle download), cleaning, loading raw data into BigQuery, and running all dbt transformations to build your core data marts.
+        * **To Run:** Navigate to **Jobs** in the left sidebar, click on `python_elt_job`, then click **Materialize all** (or **Launch Run** on the Launchpad). It's recommended to run this job first to ensure your core data marts are populated.
+
+    * **`som_kmeans_segmentation_pipeline` (Customer Segmentation ML Pipeline):**
+        * **Purpose:** Executes the machine learning workflow, including feature engineering (from dbt marts), SOM and K-Means model training, model validation, and materializing the final segmented customer data and segment lookup tables in BigQuery.
+        * **Dependency Handling:** This job automatically checks the freshness of its upstream dbt model dependencies. If the dbt models are stale or have never been run, Dagster will intelligently trigger the `olist_dbt_models` asset (which runs `dbt build`) as part of this job's execution to ensure the ML pipeline operates on the latest data.
+        * **To Run:** Navigate to **Jobs** in the left sidebar, click on `som_kmeans_segmentation_pipeline`, then click **Materialize all** (or **Launch Run** on the Launchpad).
+    
 ---
 
 
